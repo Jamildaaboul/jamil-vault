@@ -1814,6 +1814,10 @@ function filterPasswords() {
     const query = document.getElementById('searchInput').value;
     renderPasswords(query);
 }
+    <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
 </script>
 </body>
 </html>
