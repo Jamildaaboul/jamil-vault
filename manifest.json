@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#1f2937",
   "theme_color": "#4facfe",
-  "description": "Secure local password manager, notes, file vault, and calendar with custom chimes.",
+  "description": "Secure local password manager, notes, file vault, and calendar.",
   "icons": [
     {
       "src": "icon-192.png",
@@ -18,3 +18,4 @@
       "type": "image/png"
     }
   ]
+}
