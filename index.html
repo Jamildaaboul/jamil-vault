@@ -397,6 +397,24 @@ function loadAllDataFromDB() {
     };
 }
 
+// Automatically force the default chime on any saved reminder
+document.addEventListener('submit', function(e) {
+  const chimeInput = document.getElementById('reminder-chime');
+  if (chimeInput) {
+    chimeInput.value = 'godfather.mp3';
+  }
+});
+
+// Also catch manual button clicks if your form doesn't use a standard submit event
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.id === 'save-reminder-btn') { // Update 'save-reminder-btn' to match your actual save button ID if needed
+    const chimeInput = document.getElementById('reminder-chime');
+    if (chimeInput) {
+      chimeInput.value = 'godfather.mp3';
+    }
+  }
+});
+
 function resetIdleTimer() {
     clearTimeout(idleTimer);
     if (!document.getElementById('app').classList.contains('hidden')) {
@@ -1828,6 +1846,7 @@ function filterPasswords() {
     const query = document.getElementById('searchInput').value;
     renderPasswords(query);
 }
+
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('service-worker.js');
