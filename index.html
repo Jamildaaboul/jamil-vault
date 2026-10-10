@@ -361,19 +361,30 @@ function saveDataToDB(key, data, callback) {
     };
 }
 
-// Define the global unlock function that your button calls
-function unlock() {
-  const passwordInput = document.getElementById('master-password').value; // Update 'master-password' to match your actual input ID
-  
-  // Add your password validation logic here
-  if (passwordInput === "1956Terra@Sancta1975") {
-    // Hide lock screen and show your vault/calendar
-    document.getElementById('lock-screen').style.display = 'none';
-    document.getElementById('app-content').style.display = 'block';
-  } else {
-    alert('Incorrect password, please try again.');
-  }
-}
+// Define and expose the global unlock function properly
+window.unlock = function unlock() {
+    const input = document.getElementById('masterPass').value;
+    if(!input) {
+        showStatus('Enter a password', 'error');
+        return;
+    }
+    if(!masterHash) {
+        masterHash = hash(input);
+        localStorage.setItem('masterHash', masterHash);
+        showStatus('Master password created!');
+    }
+    if(hash(input) === masterHash) {
+        setTimeout(() => {
+            document.getElementById('unlock').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            populateCategoryDropdowns();
+            renderPasswords();
+            resetIdleTimer();
+        }, 100);
+    } else {
+        showStatus('Wrong password', 'error');
+    }
+};
 
 function loadAllDataFromDB() {
     if (!db) return;
