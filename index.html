@@ -1770,7 +1770,7 @@ function openFileViewer(dataUrl, fileName) {
             a.click();
         }
 
-        function importData(event) {
+       function importData(event) {
             const file = event.target.files[0];
             if(!file) return;
             const reader = new FileReader();
@@ -1855,9 +1855,8 @@ function openFileViewer(dataUrl, fileName) {
                         for(let i=1; i<lines.length; i++) {
                             const line = lines[i].trim();
                             if(!line) continue;
-                            const row = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
-                            if(row.length >= 3) {
-                                const clean = row.map(val => val.replace(/^"|"$/g, '').trim());
+                            const clean = line.split(',').map(val => val.replace(/^"|"$/g, '').trim());
+                            if(clean.length >= 3) {
                                 newPasswords.push({
                                     site: clean[0],
                                     user: clean[1],
