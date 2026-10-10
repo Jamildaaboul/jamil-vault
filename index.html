@@ -1566,9 +1566,9 @@ function openFileViewer(dataUrl, fileName) {
 					alert('Incorrect password, please try again.');
 				}
 			};
-	  </object>
+	 </object>
       <script>
-        // All bottom-of-page functions safely inside the script tag
+        // --- Core Utility & Modal Functions ---
         function openFilePreview(dataUrl) {
             const win = window.open("");
             if (!win) {
@@ -1582,6 +1582,310 @@ function openFileViewer(dataUrl, fileName) {
         function openGenModal() {
             document.getElementById('genModal').classList.remove('hidden');
             createRandomPassword();
+        }
+
+        function closeGenModal() {
+            document.getElementById('genModal').classList.add('hidden');
+        }
+
+        function createRandomPassword() {
+            const len = parseInt(document.getElementById('genLen').value);
+            const useUpper = document.getElementById('genUpper').checked;
+            const useLower = document.getElementById('genLower').checked;
+            const useNums = document.getElementById('genNums').checked;
+            const useSyms = document.getElementById('genSyms').checked;
+            
+            let chars = '';
+            if(useUpper) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            if(useLower) chars += 'abcdefghijklmnopqrstuvwxyz';
+            if(useNums) chars += '0123456789';
+            if(useSyms) chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+            
+            if(!chars) {
+                document.getElementById('genResult').value = 'Select at least one option!';
+                return;
+            }
+            
+            let res = '';
+            for(let i=0; i<len; i++) {
+                res += chars[Math.floor(Math.random() * chars.length)];
+            }
+            document.getElementById('genResult').value = res;
+        }
+
+        function useGeneratedPassword() {
+            const val = document.getElementById('genResult').value;
+            if(val && val !== 'Select at least one option!') {
+                document.getElementById('pass').value = val;
+                checkStrength(val);
+                closeGenModal();
+            }
+        }
+
+        function openCatModal() {
+            renderCategoryManagerList();
+            document.getElementById('catModal').classList.remove('hidden');
+        }
+
+        function closeCatModal() {
+            document.getElementById('catModal').classList.add('hidden');
+            populateCategoryDropdowns();
+            renderPasswords();
+        }
+
+        function renderCategoryManagerList() {
+            const container = document.getElementById('catListContainer');
+            container.innerHTML = '';
+            categories.forEach((cat, index) => {
+                container.innerHTML += `
+                    <div class="cat-row">
+                        <div style="display:flex; align-items:center; gap:6px; font-size:13px;">
+                            <span style="width:12px; height:12px; background:${cat.color}; display:inline-block; border-radius:2px;"></span>
+                            <strong>${cat.name}</strong>
+                        </div>
+                        ${categories.length > 1 ? `<button onclick="deleteCategory(${index})" class="btn-small btn-delete" style="padding:2px 5px; font-size:10px;">🗑️</button>` : ''}
+                    </div>
+                `;
+            });
+        }
+
+        function addCategory() {
+            const nameInput = document.getElementById('newCatName');
+            const colorInput = document.getElementById('newCatColor');
+            const name = nameInput.value.trim();
+            const color = colorInput.value;
+            
+            if(!name) {
+                alert('Please enter a category name');
+                return;
+            }
+            if(categories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+                alert('Category already exists');
+                return;
+            }
+            
+            categories.push({name, color});
+            saveDataToDB("categories", categories, () => {
+                nameInput.value = '';
+                renderCategoryManagerList();
+                populateCategoryDropdowns();
+            });
+        }
+
+        function deleteCategory(index) {
+            if(confirm(`Delete category "${categories[index].name}"? Entries in this category will default to Personal.`)) {
+                const deletedName = categories[index].name;
+                categories.splice(index, 1);
+                
+                passwords.forEach(p => {
+                    if(p.category === deletedName) p.category = categories[0].name;
+                });
+                
+                saveDataToDB("categories", categories);
+                saveDataToDB("passwords", passwords, () => {
+                    renderCategoryManagerList();
+                    populateCategoryDropdowns();
+                    renderPasswords();
+                });
+            }
+        }
+
+        async function encryptData(secret, data) {
+            const enc = new TextEncoder();
+            const salt = window.crypto.getRandomValues(new Uint8Array(16));
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const keyMaterial = await window.crypto.subtle.importKey(
+                "raw", enc.encode(secret), {name: "PBKDF2"}, false, ["deriveKey"]
+            );
+            const key = await window.crypto.subtle.deriveKey(
+                {name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256"},
+                keyMaterial, {name: "AES-GCM", length: 256}, false, ["encrypt"]
+            );
+            const ciphertext = await window.crypto.subtle.encrypt(
+                {name: "AES-GCM", iv: iv}, key, enc.encode(data)
+            );
+            return JSON.stringify({
+                salt: Array.from(salt),
+                iv: Array.from(iv),
+                ct: Array.from(new Uint8Array(ciphertext))
+            });
+        }
+
+        async function decryptData(secret, jsonStr) {
+            const obj = JSON.parse(jsonStr);
+            const enc = new TextEncoder();
+            const salt = new Uint8Array(obj.salt);
+            const iv = new Uint8Array(obj.iv);
+            const ct = new Uint8Array(obj.ct);
+            const keyMaterial = await window.crypto.subtle.importKey(
+                "raw", enc.encode(secret), {name: "PBKDF2"}, false, ["deriveKey"]
+            );
+            const key = await window.crypto.subtle.deriveKey(
+                {name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256"},
+                keyMaterial, {name: "AES-GCM", length: 256}, false, ["decrypt"]
+            );
+            const decrypted = await window.crypto.subtle.decrypt(
+                {name: "AES-GCM", iv: iv}, key, ct
+            );
+            return new TextDecoder().decode(decrypted);
+        }
+
+        async function exportEncrypted() {
+            const pass = prompt('Enter a password to encrypt your backup file:');
+            if(!pass) return;
+            try {
+                const payload = JSON.stringify({passwords, categories, notes, folders, events});
+                const encrypted = await encryptData(pass, payload);
+                const blob = new Blob([encrypted], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'vaultkey-backup.enc.json';
+                a.click();
+            } catch(err) {
+                alert('Encryption failed.');
+            }
+        }
+
+        function exportJSON() {
+            const data = JSON.stringify({passwords, categories, notes, folders, events}, null, 2);
+            const blob = new Blob([data], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'passwords-backup.json';
+            a.click();
+        }
+
+        function exportCSV() {
+            let csv = 'site,user,pass,category\n';
+            passwords.forEach(p => {
+                csv += `"${p.site}","${p.user}","${p.pass}","${p.category || 'Personal'}"\n`;
+            });
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'passwords-backup.csv';
+            a.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const content = e.target.result;
+                
+                if(file.name.endsWith('.enc.json') || (content.includes('"ct":') && content.includes('"salt":'))) {
+                    const pass = prompt('Enter the decryption password for this backup:');
+                    if(!pass) return;
+                    try {
+                        const decryptedStr = await decryptData(pass, content);
+                        const parsed = JSON.parse(decryptedStr);
+                        if(parsed.passwords && Array.isArray(parsed.passwords)) {
+                            passwords = parsed.passwords;
+                            saveDataToDB("passwords", passwords);
+                            if(parsed.categories && Array.isArray(parsed.categories)) {
+                                categories = parsed.categories;
+                                saveDataToDB("categories", categories);
+                            }
+                            if(parsed.notes && Array.isArray(parsed.notes)) {
+                                notes = parsed.notes;
+                                saveDataToDB("notes", notes);
+                            }
+                            if(parsed.folders && Array.isArray(parsed.folders)) {
+                                folders = parsed.folders;
+                                saveDataToDB("folders", folders);
+                            }
+                            if(parsed.events && Array.isArray(parsed.events)) {
+                                events = parsed.events;
+                                saveDataToDB("events", events);
+                            }
+                            populateCategoryDropdowns();
+                            renderPasswords();
+                            renderNotes();
+                            renderFolders();
+                            renderCalendar();
+                            alert('Encrypted backup imported successfully!');
+                        } else {
+                            alert('Invalid backup content format.');
+                        }
+                    } catch(err) {
+                        alert('Decryption failed. Wrong password or corrupted file.');
+                    }
+                } else if(file.name.endsWith('.json')) {
+                    try {
+                        const imported = JSON.parse(content);
+                        if(Array.isArray(imported)) {
+                            passwords = imported;
+                            saveDataToDB("passwords", passwords);
+                            renderPasswords();
+                            alert('JSON backup imported successfully!');
+                        } else if(imported.passwords && Array.isArray(imported.passwords)) {
+                            passwords = imported.passwords;
+                            saveDataToDB("passwords", passwords);
+                            if(imported.notes && Array.isArray(imported.notes)) {
+                                notes = imported.notes;
+                                saveDataToDB("notes", notes);
+                            }
+                            if(imported.folders && Array.isArray(imported.folders)) {
+                                folders = imported.folders;
+                                saveDataToDB("folders", folders);
+                            }
+                            if(imported.events && Array.isArray(imported.events)) {
+                                events = imported.events;
+                                saveDataToDB("events", events);
+                            }
+                            renderPasswords();
+                            renderNotes();
+                            renderFolders();
+                            renderCalendar();
+                            alert('JSON backup imported successfully!');
+                        } else {
+                            alert('Invalid JSON format.');
+                        }
+                    } catch(err) {
+                        alert('Error parsing JSON file.');
+                    }
+                } else if(file.name.endsWith('.csv')) {
+                    try {
+                        const lines = content.split('\n');
+                        const newPasswords = [];
+                        for(let i=1; i<lines.length; i++) {
+                            const line = lines[i].trim();
+                            if(!line) continue;
+                            const row = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+                            if(row.length >= 3) {
+                                const clean = row.map(val => val.replace(/^"|"$/g, '').trim());
+                                newPasswords.push({
+                                    site: clean[0],
+                                    user: clean[1],
+                                    pass: clean[2],
+                                    category: clean[3] || 'Personal',
+                                    id: Date.now() + i
+                                });
+                            }
+                        }
+                        if(newPasswords.length > 0) {
+                            passwords = newPasswords;
+                            saveDataToDB("passwords", passwords);
+                            renderPasswords();
+                            alert('CSV backup imported successfully!');
+                        } else {
+                            alert('No valid records found in CSV file.');
+                        }
+                    } catch(err) {
+                        alert('Error parsing CSV file.');
+                    }
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function filterPasswords() {
+            const query = document.getElementById('searchInput').value;
+            renderPasswords(query);
         }
 
         // Direct bulletproof unlock handler
@@ -1603,311 +1907,10 @@ function openFileViewer(dataUrl, fileName) {
                 alert('Incorrect password, please try again.');
             }
         };
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js');
+        }
       </script>
     </body>
 </html>
-function openGenModal() {
-    document.getElementById('genModal').classList.remove('hidden');
-    createRandomPassword();
-}
-function closeGenModal() {
-    document.getElementById('genModal').classList.add('hidden');
-}
-function createRandomPassword() {
-    const len = parseInt(document.getElementById('genLen').value);
-    const useUpper = document.getElementById('genUpper').checked;
-    const useLower = document.getElementById('genLower').checked;
-    const useNums = document.getElementById('genNums').checked;
-    const useSyms = document.getElementById('genSyms').checked;
-    
-    let chars = '';
-    if(useUpper) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    if(useLower) chars += 'abcdefghijklmnopqrstuvwxyz';
-    if(useNums) chars += '0123456789';
-    if(useSyms) chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
-    
-    if(!chars) {
-        document.getElementById('genResult').value = 'Select at least one option!';
-        return;
-    }
-    
-    let res = '';
-    for(let i=0; i<len; i++) {
-        res += chars[Math.floor(Math.random() * chars.length)];
-    }
-    document.getElementById('genResult').value = res;
-}
-function useGeneratedPassword() {
-    const val = document.getElementById('genResult').value;
-    if(val && val !== 'Select at least one option!') {
-        document.getElementById('pass').value = val;
-        checkStrength(val);
-        closeGenModal();
-    }
-}
-
-function openCatModal() {
-    renderCategoryManagerList();
-    document.getElementById('catModal').classList.remove('hidden');
-}
-function closeCatModal() {
-    document.getElementById('catModal').classList.add('hidden');
-    populateCategoryDropdowns();
-    renderPasswords();
-}
-function renderCategoryManagerList() {
-    const container = document.getElementById('catListContainer');
-    container.innerHTML = '';
-    categories.forEach((cat, index) => {
-        container.innerHTML += `
-            <div class="cat-row">
-                <div style="display:flex; align-items:center; gap:6px; font-size:13px;">
-                    <span style="width:12px; height:12px; background:${cat.color}; display:inline-block; border-radius:2px;"></span>
-                    <strong>${cat.name}</strong>
-                </div>
-                ${categories.length > 1 ? `<button onclick="deleteCategory(${index})" class="btn-small btn-delete" style="padding:2px 5px; font-size:10px;">🗑️</button>` : ''}
-            </div>
-        `;
-    });
-}
-function addCategory() {
-    const nameInput = document.getElementById('newCatName');
-    const colorInput = document.getElementById('newCatColor');
-    const name = nameInput.value.trim();
-    const color = colorInput.value;
-    
-    if(!name) {
-        alert('Please enter a category name');
-        return;
-    }
-    if(categories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-        alert('Category already exists');
-        return;
-    }
-    
-    categories.push({name, color});
-    saveDataToDB("categories", categories, () => {
-        nameInput.value = '';
-        renderCategoryManagerList();
-        populateCategoryDropdowns();
-    });
-}
-function deleteCategory(index) {
-    if(confirm(`Delete category "${categories[index].name}"? Entries in this category will default to Personal.`)) {
-        const deletedName = categories[index].name;
-        categories.splice(index, 1);
-        
-        passwords.forEach(p => {
-            if(p.category === deletedName) p.category = categories[0].name;
-        });
-        
-        saveDataToDB("categories", categories);
-        saveDataToDB("passwords", passwords, () => {
-            renderCategoryManagerList();
-            populateCategoryDropdowns();
-            renderPasswords();
-        });
-    }
-}
-
-async function encryptData(secret, data) {
-    const enc = new TextEncoder();
-    const salt = window.crypto.getRandomValues(new Uint8Array(16));
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const keyMaterial = await window.crypto.subtle.importKey(
-        "raw", enc.encode(secret), {name: "PBKDF2"}, false, ["deriveKey"]
-    );
-    const key = await window.crypto.subtle.deriveKey(
-        {name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256"},
-        keyMaterial, {name: "AES-GCM", length: 256}, false, ["encrypt"]
-    );
-    const ciphertext = await window.crypto.subtle.encrypt(
-        {name: "AES-GCM", iv: iv}, key, enc.encode(data)
-    );
-    return JSON.stringify({
-        salt: Array.from(salt),
-        iv: Array.from(iv),
-        ct: Array.from(new Uint8Array(ciphertext))
-    });
-}
-
-async function decryptData(secret, jsonStr) {
-    const obj = JSON.parse(jsonStr);
-    const enc = new TextEncoder();
-    const salt = new Uint8Array(obj.salt);
-    const iv = new Uint8Array(obj.iv);
-    const ct = new Uint8Array(obj.ct);
-    const keyMaterial = await window.crypto.subtle.importKey(
-        "raw", enc.encode(secret), {name: "PBKDF2"}, false, ["deriveKey"]
-    );
-    const key = await window.crypto.subtle.deriveKey(
-        {name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256"},
-        keyMaterial, {name: "AES-GCM", length: 256}, false, ["decrypt"]
-    );
-    const decrypted = await window.crypto.subtle.decrypt(
-        {name: "AES-GCM", iv: iv}, key, ct
-    );
-    return new TextDecoder().decode(decrypted);
-}
-
-async function exportEncrypted() {
-    const pass = prompt('Enter a password to encrypt your backup file:');
-    if(!pass) return;
-    try {
-        const payload = JSON.stringify({passwords, categories, notes, folders, events});
-        const encrypted = await encryptData(pass, payload);
-        const blob = new Blob([encrypted], {type: 'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'vaultkey-backup.enc.json';
-        a.click();
-    } catch(err) {
-        alert('Encryption failed.');
-    }
-}
-
-function exportJSON() {
-    const data = JSON.stringify({passwords, categories, notes, folders, events}, null, 2);
-    const blob = new Blob([data], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'passwords-backup.json';
-    a.click();
-}
-
-function exportCSV() {
-    let csv = 'site,user,pass,category\n';
-    passwords.forEach(p => {
-        csv += `"${p.site}","${p.user}","${p.pass}","${p.category || 'Personal'}"\n`;
-    });
-    const blob = new Blob([csv], {type: 'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'passwords-backup.csv';
-    a.click();
-}
-
-function importData(event) {
-    const file = event.target.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const content = e.target.result;
-        
-        if(file.name.endsWith('.enc.json') || (content.includes('"ct":') && content.includes('"salt":'))) {
-            const pass = prompt('Enter the decryption password for this backup:');
-            if(!pass) return;
-            try {
-                const decryptedStr = await decryptData(pass, content);
-                const parsed = JSON.parse(decryptedStr);
-                if(parsed.passwords && Array.isArray(parsed.passwords)) {
-                    passwords = parsed.passwords;
-                    saveDataToDB("passwords", passwords);
-                    if(parsed.categories && Array.isArray(parsed.categories)) {
-                        categories = parsed.categories;
-                        saveDataToDB("categories", categories);
-                    }
-                    if(parsed.notes && Array.isArray(parsed.notes)) {
-                        notes = parsed.notes;
-                        saveDataToDB("notes", notes);
-                    }
-                    if(parsed.folders && Array.isArray(parsed.folders)) {
-                        folders = parsed.folders;
-                        saveDataToDB("folders", folders);
-                    }
-                    if(parsed.events && Array.isArray(parsed.events)) {
-                        events = parsed.events;
-                        saveDataToDB("events", events);
-                    }
-                    populateCategoryDropdowns();
-                    renderPasswords();
-                    renderNotes();
-                    renderFolders();
-                    renderCalendar();
-                    alert('Encrypted backup imported successfully!');
-                } else {
-                    alert('Invalid backup content format.');
-                }
-            } catch(err) {
-                alert('Decryption failed. Wrong password or corrupted file.');
-            }
-        } else if(file.name.endsWith('.json')) {
-            try {
-                const imported = JSON.parse(content);
-                if(Array.isArray(imported)) {
-                    passwords = imported;
-                    saveDataToDB("passwords", passwords);
-                    renderPasswords();
-                    alert('JSON backup imported successfully!');
-                } else if(imported.passwords && Array.isArray(imported.passwords)) {
-                    passwords = imported.passwords;
-                    saveDataToDB("passwords", passwords);
-                    if(imported.notes && Array.isArray(imported.notes)) {
-                        notes = imported.notes;
-                        saveDataToDB("notes", notes);
-                    }
-                    if(imported.folders && Array.isArray(imported.folders)) {
-                        folders = imported.folders;
-                        saveDataToDB("folders", folders);
-                    }
-                    if(imported.events && Array.isArray(imported.events)) {
-                        events = imported.events;
-                        saveDataToDB("events", events);
-                    }
-                    renderPasswords();
-                    renderNotes();
-                    renderFolders();
-                    renderCalendar();
-                    alert('JSON backup imported successfully!');
-                } else {
-                    alert('Invalid JSON format.');
-                }
-            } catch(err) {
-                alert('Error parsing JSON file.');
-            }
-        } else if(file.name.endsWith('.csv')) {
-            try {
-                const lines = content.split('\n');
-                const newPasswords = [];
-                for(let i=1; i<lines.length; i++) {
-                    const line = lines[i].trim();
-                    if(!line) continue;
-                    const row = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
-                    if(row.length >= 3) {
-                        const clean = row.map(val => val.replace(/^"|"$/g, '').trim());
-                        newPasswords.push({
-                            site: clean[0],
-                            user: clean[1],
-                            pass: clean[2],
-                            category: clean[3] || 'Personal',
-                            id: Date.now() + i
-                        });
-                    }
-                }
-                if(newPasswords.length > 0) {
-                    passwords = newPasswords;
-                    saveDataToDB("passwords", passwords);
-                    renderPasswords();
-                    alert('CSV backup imported successfully!');
-                } else {
-                    alert('No valid records found in CSV file.');
-                }
-            } catch(err) {
-                alert('Error parsing CSV file.');
-            }
-        }
-    };
-    reader.readAsText(file);
-}
-
-function filterPasswords() {
-    const query = document.getElementById('searchInput').value;
-    renderPasswords(query);
-}
-
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js');
-}
