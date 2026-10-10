@@ -1566,7 +1566,7 @@ function openFileViewer(dataUrl, fileName) {
 					alert('Incorrect password, please try again.');
 				}
 			};
-	 </object>
+	</object>
       <script>
         // --- Core Utility & Modal Functions ---
         function openFilePreview(dataUrl) {
@@ -1770,7 +1770,7 @@ function openFileViewer(dataUrl, fileName) {
             a.click();
         }
 
-       function importData(event) {
+        function importData(event) {
             const file = event.target.files[0];
             if(!file) return;
             const reader = new FileReader();
@@ -1878,6 +1878,7 @@ function openFileViewer(dataUrl, fileName) {
                         alert('Error parsing CSV file.');
                     }
                 }
+            };
             reader.readAsText(file);
         }
 
