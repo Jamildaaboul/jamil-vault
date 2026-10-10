@@ -524,6 +524,8 @@ function hash(str) {
 }
 
 function unlock() {
+// Expose the function globally so your HTML button can reach it
+    window.unlock = unlock;
     const input = document.getElementById('masterPass').value;
     if(!input) {
         showStatus('Enter a password', 'error');
