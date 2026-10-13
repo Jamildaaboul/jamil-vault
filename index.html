@@ -1882,33 +1882,41 @@ function openFilePreview(dataUrl) {
             };
             reader.readAsText(file);
         }
-		
 		function checkCalendarReminders() {
-            if (typeof events === 'undefined' || !events) return;
-            const now = new Date();
+            if (typeof events === 'undefined' || !events || events.length === 0) {
+                console.log("Calendar reminders: No events loaded yet.");
+                return;
+            }
             
+            const now = new Date();
+            console.log("Checking reminders for", events.length, "events at", now.toLocaleTimeString());
+
             events.forEach(ev => {
                 if (!ev.date || !ev.time) return;
                 const eventTime = new Date(`${ev.date}T${ev.time}`);
                 const diffMs = eventTime - now;
                 const diffMins = Math.floor(diffMs / 60000);
                 
-                const reminderSetting = parseInt(ev.reminder || 0); // e.g., 10, 30, 60
-                
-                // Advance reminder threshold (e.g., if 10 mins set, triggers when between 0 and 10 mins away)
+                const reminderSetting = parseInt(ev.reminder || 0);
+                console.log(`Event: "${ev.title}" | Minutes away: ${diffMins} | Setting: ${reminderSetting}`);
+
                 if (reminderSetting > 0 && diffMins <= reminderSetting && diffMins >= 0 && !ev.notified) {
                     alert(`Reminder: "${ev.title}" is coming up in about ${diffMins} minutes!`);
                     ev.notified = true;
-                } 
-                // Exact time reminder
-                else if (diffMins <= 0 && diffMins > -2 && !ev.notifiedExact) {
+                } else if (diffMins <= 0 && diffMins > -2 && !ev.notifiedExact) {
                     alert(`Reminder: "${ev.title}" is starting now!`);
                     ev.notifiedExact = true;
                 }
             });
         }
 
-        setInterval(checkCalendarReminders, 15000); // Check every 15 seconds for reliability
+        // Manual test function you can run from your browser console
+        window.testReminders = function() {
+            alert("Manual reminder test triggered!");
+            checkCalendarReminders();
+        };
+
+        setInterval(checkCalendarReminders, 15000);
 
         function filterPasswords() {
             const query = document.getElementById('searchInput').value;
