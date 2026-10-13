@@ -47,7 +47,56 @@
     button:hover { opacity: 0.9; }
     .hidden { display: none !important; }
     #masterPass { width: 100%; }
-	.card-actions {
+
+    /* Calendar Grid Styles */
+    .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+        text-align: center;
+        margin-top: 10px;
+    }
+    .cal-header-cell {
+        font-weight: bold;
+        font-size: 13px;
+        padding: 6px 0;
+    }
+    .cal-cell {
+        background: var(--item-bg);
+        min-height: 65px;
+        border-radius: 6px;
+        padding: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        border: 1px solid var(--input-border);
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .cal-cell:hover {
+        border-color: #007bff;
+    }
+    .cal-cell.today {
+        border: 2px solid #007bff;
+    }
+    .cal-cell-other {
+        opacity: 0.4;
+    }
+    .cal-event-dot {
+        font-size: 10px;
+        background: #007bff;
+        color: white;
+        border-radius: 3px;
+        padding: 1px 4px;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Card Action Toolbar */
+    .card-actions {
         display: flex;
         gap: 6px;
         width: 100%;
@@ -64,6 +113,7 @@
         font-size: 12px;
         margin: 0 !important;
     }
+</style>
 </style>
 </head>
 <body data-theme="light">
