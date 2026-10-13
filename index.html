@@ -6,133 +6,82 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Password Manager & Calendar</title>
 <style>
-    :root {
-        --bg-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        --container-bg: #ffffff;
-        --text-color: #333333;
-        --input-border: #cccccc;
-        --item-bg: #f8f9fa;
-    }
-    [data-theme="dark"] {
-        --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        --container-bg: #1f1f1f;
-        --text-color: #e0e0e0;
-        --input-border: #444444;
-        --item-bg: #2a2a2a;
-    }
-    body {
-        font-family: Arial, sans-serif;
-        background: var(--bg-gradient);
-        color: var(--text-color);
-        margin: 0;
-        padding: 10px;
-        min-height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-  .container {
-        width: 95%;
-        max-width: 1200px;
-        background: var(--container-bg);
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-        border: 1px solid var(--input-border);
-        box-sizing: border-box;
-    }
-    .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    input, select, textarea, button { width: 100%; padding: 10px; margin: 6px 0; border-radius: 6px; border: 1px solid var(--input-border); box-sizing: border-box; font-size: 14px; }
-    button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
-    button:hover { opacity: 0.9; }
-    .hidden { display: none !important; }
-    #masterPass { width: 100%; }
+:root {
+    --bg-gradient: linear-gradient(135deg, #667eea, #764ba2);
+    --container-bg: #ffffff;
+    --text-color: #333333;
+    --input-bg: #ffffff;
+    --input-border: #dddddd;
+    --item-bg: #f8f9fa;
+    --pass-bg: #eeeeee;
+}
+[data-theme="dark"] {
+    --bg-gradient: linear-gradient(135deg, #1a1a2e, #16213e);
+    --container-bg: #1f2937;
+    --text-color: #f3f4f6;
+    --input-bg: #374151;
+    --input-border: #4b5563;
+    --item-bg: #111827;
+    --pass-bg: #374151;
+}
+body { font-family: Arial, sans-serif; background: var(--bg-gradient); color: var(--text-color); padding: 10px; max-width: 900px; margin: auto; min-height: 100vh; transition: 0.3s; }
+.container { background: var(--container-bg); padding: 12px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+input, select, textarea, button { width: 100%; padding: 8px; margin: 4px 0; border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text-color); border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+button { background: #4facfe; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+button:hover { opacity: 0.9; }
 
-    /* Calendar Grid Styles */
-    .cal-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 4px;
-        text-align: center;
-        margin-top: 10px;
-    }
-    .cal-header-cell {
-        font-weight: bold;
-        font-size: 13px;
-        padding: 6px 0;
-    }
-    .cal-cell {
-        background: var(--item-bg);
-        min-height: 65px;
-        border-radius: 6px;
-        padding: 4px;
-        font-size: 13px;
-        cursor: pointer;
-        border: 1px solid var(--input-border);
-        text-align: left;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-    }
-    .cal-cell:hover {
-        border-color: #007bff;
-    }
-    .cal-cell.today {
-        border: 2px solid #007bff;
-    }
-    .cal-cell-other {
-        opacity: 0.4;
-    }
-    .cal-event-dot {
-        font-size: 10px;
-        background: #007bff;
-        color: white;
-        border-radius: 3px;
-        padding: 1px 4px;
-        margin-top: 2px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+/* Compact Cards */
+.password-item, .folder-item, .event-item { background: var(--item-bg); padding: 8px 10px; margin: 6px 0; border-radius: 6px; border-left: 4px solid #4facfe; display: flex; flex-direction: column; gap: 4px; }
+.password-info, .folder-info, .event-info { width: 100%; }
+.password-item .pass { font-family: monospace; background: var(--pass-bg); padding: 2px 5px; border-radius: 4px; word-break: break-all; display: inline-block; margin-top: 2px; }
+.badge { display: inline-block; padding: 2px 5px; font-size: 10px; color: white; border-radius: 4px; margin-left: 4px; vertical-align: middle; }
 
-    /* Card Action Toolbar */
-    .card-actions {
-        display: flex;
-        gap: 6px;
-        width: 100%;
-        border-top: 1px solid var(--input-border);
-        padding-top: 8px;
-        margin-top: 8px;
-        justify-content: flex-end;
-    }
-    .card-actions button,
-    .btn-small {
-        width: auto !important;
-        flex: 1;
-        padding: 6px 10px;
-        font-size: 12px;
-        margin: 0 !important;
-    }
-</style>
+/* Inline Action Toolbar for Cards */
+.card-actions { display: flex; gap: 4px; width: 100%; border-top: 1px solid var(--input-border); padding-top: 6px; justify-content: flex-end; }
+.btn-small { padding: 4px 8px; font-size: 13px; width: auto; border-radius: 4px; }
+
+.hidden { display: none !important; }
+#passwordList, #notesList, #foldersList, #eventsList { margin-top: 10px; max-height: 55vh; overflow-y: auto; }
+.status { padding: 6px; border-radius: 6px; margin: 6px 0; font-weight: bold; text-align: center; font-size: 13px; }
+.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.top-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.form-panel { background: var(--item-bg); padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--input-border); }
+.strength-meter { height: 4px; border-radius: 2px; background: #ddd; margin-top: 3px; transition: 0.3s; width: 0%; }
+.header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+.modal:not(.hidden) { display: flex; }
+.modal-content { background: var(--container-bg); padding: 15px; border-radius: 10px; width: 90%; max-width: 450px; border: 1px solid var(--input-border); max-height: 85vh; overflow-y: auto; }
+.cat-row { display: flex; justify-content: space-between; align-items: center; background: var(--item-bg); padding: 6px; margin: 3px 0; border-radius: 4px; }
+.note-img { max-width: 80px; max-height: 80px; border-radius: 4px; margin-top: 4px; cursor: pointer; display: block; border: 1px solid var(--input-border); }
+
+/* Calendar Grid Styles */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; margin-top: 8px; }
+.cal-header-cell { font-weight: bold; font-size: 12px; padding: 4px 0; }
+.cal-cell { background: var(--item-bg); min-height: 55px; border-radius: 4px; padding: 3px; font-size: 12px; cursor: pointer; border: 1px solid var(--input-border); text-align: left; vertical-align: top; display: flex; flex-direction: column; overflow: hidden; }
+.cal-cell:hover { border-color: #4facfe; }
+.cal-cell.today { border: 2px solid #4facfe; }
+.cal-cell-other { opacity: 0.4; }
+.cal-event-dot { font-size: 10px; background: #007bff; color: white; border-radius: 3px; padding: 1px 3px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
 </head>
 <body data-theme="light">
 <div class="container">
-    <div class="header-actions">
-        <h3 style="margin:0;">Jamil's Password Manager</h3>
-        <div style="display:flex; gap:4px;">
-            <button onclick="openCatModal()" class="btn-small" style="background:#6f42c1;">Categories</button>
-            <button onclick="toggleTheme()" class="btn-small" style="background:#6c757d;">Theme</button>
-        </div>
-    </div>
+<div class="header-actions">
+<h3 style="margin:0;">Jamil's Password Manager</h3>
+<div style="display:flex; gap:4px;">
+<button onclick="openCatModal()" class="btn-small" style="background:#6f42c1;">Categories</button>
+<button onclick="toggleTheme()" class="btn-small" style="background:#6c757d;">Theme</button>
+</div>
+</div>
 
-    <div id="unlock">
-        <p style="font-size:14px; margin:6px 0;">Please enter your master password to continue.</p>
-        <input type="password" id="masterPass" placeholder="Master Password">
-        <button onclick="unlock()">Unlock / Setup</button>
-        <button id="bioBtn" onclick="unlockBiometric()" style="background:#20c997; display:none; margin-top:4px;">Unlock with Biometrics 🛡️</button>
-        <div id="status"></div>
-    </div>
+<div id="unlock">
+<p style="font-size:14px; margin:6px 0;">Please enter your master password to continue.</p>
+<input type="password" id="masterPass" placeholder="Master Password">
+<button onclick="unlock()">Unlock / Setup</button>
+<button id="bioBtn" onclick="unlockBiometric()" style="background:#20c997; display:none; margin-top:4px;">Unlock with Biometrics 🛡️</button>
+<div id="status"></div>
+</div>
 
 <div id="app" class="hidden">
 <!-- Main Tab Navigation -->
@@ -1621,7 +1570,7 @@ function openFilePreview(dataUrl) {
         `);
     }
     win.document.close();
-     function openFilePreview(dataUrl) {
+}       function openFilePreview(dataUrl) {
             const win = window.open("");
             if (!win) {
                 alert("Please allow popups for this app to view files.");
@@ -1640,7 +1589,7 @@ function openFilePreview(dataUrl) {
             document.getElementById('genModal').classList.add('hidden');
         }
 
-      function createRandomPassword() {
+        function createRandomPassword() {
             const len = parseInt(document.getElementById('genLen').value);
             const useUpper = document.getElementById('genUpper').checked;
             const useLower = document.getElementById('genLower').checked;
@@ -1657,12 +1606,12 @@ function openFilePreview(dataUrl) {
                 document.getElementById('genResult').value = 'Select at least one option!';
                 return;
             }
-
-            let password = '';
-            for(let i = 0; i < len; i++) {
-                password += chars.charAt(Math.floor(Math.random() * chars.length));
+            
+            let res = '';
+            for(let i=0; i<len; i++) {
+                res += chars[Math.floor(Math.random() * chars.length)];
             }
-            document.getElementById('genResult').value = password;
+            document.getElementById('genResult').value = res;
         }
 
         function useGeneratedPassword() {
@@ -1935,41 +1884,26 @@ function openFilePreview(dataUrl) {
         }
 		
 		function checkCalendarReminders() {
-            try {
-                // Pull live events directly from local storage so background checks stay synced
-                const savedEvents = JSON.parse(localStorage.getItem('vault_events') || '[]');
-                if (!Array.isArray(savedEvents) || savedEvents.length === 0) return;
+            if (typeof events === 'undefined' || !events) return;
+            const now = new Date();
+            events.forEach(ev => {
+                if (!ev.date || !ev.time) return;
+                const eventTime = new Date(`${ev.date}T${ev.time}`);
+                const diffMs = eventTime - now;
+                const diffMins = Math.floor(diffMs / 60000);
                 
-                const now = new Date();
-                let updated = false;
-
-                savedEvents.forEach(ev => {
-                    if (!ev.date || !ev.time || ev.notified) return;
-                    
-                    const eventTime = new Date(`${ev.date}T${ev.time}:00`);
-                    if (isNaN(eventTime.getTime())) return;
-
-                    const diffMins = Math.floor((eventTime - now) / 60000);
-                    const reminderSetting = parseInt(ev.reminder || 0);
-
-                    if (reminderSetting > 0 && diffMins <= reminderSetting && diffMins >= 0) {
-                        alert(`Reminder: "${ev.title}" is coming up in about ${diffMins} minutes!`);
-                        ev.notified = true;
-                        updated = true;
-                    }
-                });
-
-                if (updated) {
-                    localStorage.setItem('vault_events', JSON.stringify(savedEvents));
-                    if (typeof events !== 'undefined') events = savedEvents;
-                    if (typeof renderCalendar === 'function') renderCalendar();
+                const reminderSetting = parseInt(ev.reminder || 0); 
+                if (reminderSetting > 0 && diffMins === reminderSetting && !ev.notified) {
+                    alert(`Reminder: "${ev.title}" is coming up in ${reminderSetting} minutes!`);
+                    ev.notified = true;
+                } else if (diffMins === 0 && !ev.notifiedExact) {
+                    alert(`Reminder: "${ev.title}" is starting now!`);
+                    ev.notifiedExact = true;
                 }
-            } catch (err) {
-                console.error("Reminder check error:", err);
-            }
+            });
         }
 
-        setInterval(checkCalendarReminders, 15000);
+        setInterval(checkCalendarReminders, 60000);
 
         function filterPasswords() {
             const query = document.getElementById('searchInput').value;
@@ -1977,40 +1911,29 @@ function openFilePreview(dataUrl) {
         }
 
         // Direct bulletproof unlock handler
-		window.unlock = function() {
-            try {
-                const passInput = document.getElementById('masterPass');
-                if (!passInput) {
-                    alert('Password input field not found.');
-                    return;
-                }
-                const input = passInput.value;
-                if (!input) {
-                    alert('Please enter your password.');
-                    return;
-                }
-                
-                // Direct match for your master password
-                if (input === "1956Terra@Sancta1975" || (typeof masterHash !== 'undefined' && typeof hash === 'function' && hash(input) === masterHash)) {
-                    const unlockScreen = document.getElementById('unlock');
-                    const appContent = document.getElementById('app');
-                    
-                    if (unlockScreen) unlockScreen.classList.add('hidden');
-                    if (appContent) appContent.classList.remove('hidden');
-                    
-                    if (typeof populateCategoryDropdowns === 'function') populateCategoryDropdowns();
-                    if (typeof renderPasswords === 'function') renderPasswords();
-                    if (typeof resetIdleTimer === 'function') resetIdleTimer();
-                } else {
-                    alert('Incorrect password, please try again.');
-                }
-            } catch (err) {
-                console.error("Unlock error:", err);
-                alert("An error occurred during unlock. Check console for details.");
-            }
-        };
-		
-		setInterval(checkCalendarReminders, 15000);
-    </script>
-</body>
+        window.unlock = function() {
+    const input = document.getElementById('masterPass').value;
+    if (!input) {
+        showStatus('Enter a password', 'error');
+        return;
+    }
+    if (!masterHash) {
+        masterHash = hash(input);
+        localStorage.setItem('masterHash', masterHash);
+        showStatus('Master password created!');
+    }
+    if (hash(input) === masterHash) {
+        setTimeout(() => {
+            document.getElementById('unlock').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            populateCategoryDropdowns();
+            renderPasswords();
+            resetIdleTimer();
+        }, 100);
+    } else {
+        showStatus('Wrong password', 'error');
+    }
+};
+      </script>
+    </body>
 </html>
