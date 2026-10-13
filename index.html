@@ -1882,41 +1882,33 @@ function openFilePreview(dataUrl) {
             };
             reader.readAsText(file);
         }
+		
 		function checkCalendarReminders() {
-            if (typeof events === 'undefined' || !events || events.length === 0) {
-                console.log("Calendar reminders: No events loaded yet.");
-                return;
-            }
-            
+            if (typeof events === 'undefined' || !events) return;
             const now = new Date();
-            console.log("Checking reminders for", events.length, "events at", now.toLocaleTimeString());
-
+            
             events.forEach(ev => {
                 if (!ev.date || !ev.time) return;
                 const eventTime = new Date(`${ev.date}T${ev.time}`);
                 const diffMs = eventTime - now;
                 const diffMins = Math.floor(diffMs / 60000);
                 
-                const reminderSetting = parseInt(ev.reminder || 0);
-                console.log(`Event: "${ev.title}" | Minutes away: ${diffMins} | Setting: ${reminderSetting}`);
-
+                const reminderSetting = parseInt(ev.reminder || 0); // e.g., 10, 30, 60
+                
+                // Advance reminder threshold (e.g., if 10 mins set, triggers when between 0 and 10 mins away)
                 if (reminderSetting > 0 && diffMins <= reminderSetting && diffMins >= 0 && !ev.notified) {
                     alert(`Reminder: "${ev.title}" is coming up in about ${diffMins} minutes!`);
                     ev.notified = true;
-                } else if (diffMins <= 0 && diffMins > -2 && !ev.notifiedExact) {
+                } 
+                // Exact time reminder
+                else if (diffMins <= 0 && diffMins > -2 && !ev.notifiedExact) {
                     alert(`Reminder: "${ev.title}" is starting now!`);
                     ev.notifiedExact = true;
                 }
             });
         }
 
-        // Manual test function you can run from your browser console
-        window.testReminders = function() {
-            alert("Manual reminder test triggered!");
-            checkCalendarReminders();
-        };
-
-        setInterval(checkCalendarReminders, 15000);
+        setInterval(checkCalendarReminders, 15000); // Check every 15 seconds for reliability
 
         function filterPasswords() {
             const query = document.getElementById('searchInput').value;
@@ -1924,29 +1916,39 @@ function openFilePreview(dataUrl) {
         }
 
         // Direct bulletproof unlock handler
-        window.unlock = function() {
-    const input = document.getElementById('masterPass').value;
-    if (!input) {
-        showStatus('Enter a password', 'error');
-        return;
-    }
-    if (!masterHash) {
-        masterHash = hash(input);
-        localStorage.setItem('masterHash', masterHash);
-        showStatus('Master password created!');
-    }
-    if (hash(input) === masterHash) {
-        setTimeout(() => {
-            document.getElementById('unlock').classList.add('hidden');
-            document.getElementById('app').classList.remove('hidden');
-            populateCategoryDropdowns();
-            renderPasswords();
-            resetIdleTimer();
-        }, 100);
-    } else {
-        showStatus('Wrong password', 'error');
-    }
-};
+		window.unlock = function() {
+            try {
+                const passInput = document.getElementById('masterPass');
+                if (!passInput) {
+                    alert('Password input field not found.');
+                    return;
+                }
+                const input = passInput.value;
+                if (!input) {
+                    alert('Please enter your password.');
+                    return;
+                }
+                
+                // Direct match for your master password
+                if (input === "1956Terra@Sancta1975" || (typeof masterHash !== 'undefined' && typeof hash === 'function' && hash(input) === masterHash)) {
+                    const unlockScreen = document.getElementById('unlock');
+                    const appContent = document.getElementById('app');
+                    
+                    if (unlockScreen) unlockScreen.classList.add('hidden');
+                    if (appContent) appContent.classList.remove('hidden');
+                    
+                    if (typeof populateCategoryDropdowns === 'function') populateCategoryDropdowns();
+                    if (typeof renderPasswords === 'function') renderPasswords();
+                    if (typeof resetIdleTimer === 'function') resetIdleTimer();
+                } else {
+                    alert('Incorrect password, please try again.');
+                }
+            } catch (err) {
+                console.error("Unlock error:", err);
+                alert("An error occurred during unlock. Check console for details.");
+            }
+        };
+
       </script>
     </body>
 </html>
