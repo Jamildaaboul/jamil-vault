@@ -1886,24 +1886,29 @@ function openFilePreview(dataUrl) {
 		function checkCalendarReminders() {
             if (typeof events === 'undefined' || !events) return;
             const now = new Date();
+            
             events.forEach(ev => {
                 if (!ev.date || !ev.time) return;
                 const eventTime = new Date(`${ev.date}T${ev.time}`);
                 const diffMs = eventTime - now;
                 const diffMins = Math.floor(diffMs / 60000);
                 
-                const reminderSetting = parseInt(ev.reminder || 0); 
-                if (reminderSetting > 0 && diffMins === reminderSetting && !ev.notified) {
-                    alert(`Reminder: "${ev.title}" is coming up in ${reminderSetting} minutes!`);
+                const reminderSetting = parseInt(ev.reminder || 0); // e.g., 10, 30, 60
+                
+                // Advance reminder threshold (e.g., if 10 mins set, triggers when between 0 and 10 mins away)
+                if (reminderSetting > 0 && diffMins <= reminderSetting && diffMins >= 0 && !ev.notified) {
+                    alert(`Reminder: "${ev.title}" is coming up in about ${diffMins} minutes!`);
                     ev.notified = true;
-                } else if (diffMins === 0 && !ev.notifiedExact) {
+                } 
+                // Exact time reminder
+                else if (diffMins <= 0 && diffMins > -2 && !ev.notifiedExact) {
                     alert(`Reminder: "${ev.title}" is starting now!`);
                     ev.notifiedExact = true;
                 }
             });
         }
 
-        setInterval(checkCalendarReminders, 60000);
+        setInterval(checkCalendarReminders, 15000); // Check every 15 seconds for reliability
 
         function filterPasswords() {
             const query = document.getElementById('searchInput').value;
