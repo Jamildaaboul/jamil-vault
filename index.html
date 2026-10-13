@@ -1559,7 +1559,7 @@ function openFilePreview(dataUrl) {
             document.getElementById('genModal').classList.add('hidden');
         }
 
-        function createRandomPassword() {
+      function createRandomPassword() {
             const len = parseInt(document.getElementById('genLen').value);
             const useUpper = document.getElementById('genUpper').checked;
             const useLower = document.getElementById('genLower').checked;
@@ -1576,12 +1576,12 @@ function openFilePreview(dataUrl) {
                 document.getElementById('genResult').value = 'Select at least one option!';
                 return;
             }
-            
-            let res = '';
-            for(let i=0; i<len; i++) {
-                res += chars[Math.floor(Math.random() * chars.length)];
+
+            let password = '';
+            for(let i = 0; i < len; i++) {
+                password += chars.charAt(Math.floor(Math.random() * chars.length));
             }
-            document.getElementById('genResult').value = res;
+            document.getElementById('genResult').value = password;
         }
 
         function useGeneratedPassword() {
