@@ -1353,61 +1353,58 @@ function calNavigate(direction) {
 }
 
 function checkReminders() {
-    if (document.getElementById('app').classList.contains('hidden')) return; // locked
+    if (document.getElementById('app').classList.contains('hidden')) return;
 
     const now = new Date();
+
     events.forEach(ev => {
         if (!ev.reminder || ev.reminder === 'none' || ev.reminder === 'No Reminder') return;
         if (!ev.date || !ev.time) return;
 
-        // 1. MOBILE FIX: Strictly format date/time for iOS Safari compatibility
-        const cleanDate = ev.date.replace(/ /g, 'T'); // Ensure 'T' separator
-        const timeParts = ev.time.split(':');
-        const cleanTime = timeParts.length === 2 ? `${ev.time}:00` : ev.time; // Ensure seconds
-        
-        const eventDateTime = new Date(`${cleanDate}T${cleanTime}`);
-        if (isNaN(eventDateTime.getTime())) {
-            console.warn("Invalid date format for event:", ev.title);
+        // Normalise: accept "2:30 PM", "14:30", "14:30:00"
+        let t = String(ev.time).trim();
+        let d = new Date(`${ev.date}T${t}`);
+        if (isNaN(d.getTime())) {
+            // Try 12-hour AM/PM format
+            const m = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+            if (m) {
+                let h = parseInt(m[1]) % 12;
+                if (/pm/i.test(m[3])) h += 12;
+                d = new Date(`${ev.date}T${String(h).padStart(2,'0')}:${m[2]}:00`);
+            }
+        }
+        if (isNaN(d.getTime())) {
+            showStatus(`⚠️ Bad date on "${ev.title}": ${ev.date} / ${ev.time}`, 'error');
             return;
         }
 
-        // 2. Parse reminder minutes safely
-        let reminderMinutesBefore = 0;
-        if (ev.reminder === '0' || ev.reminder === 0 || String(ev.reminder).includes('At time')) {
-            reminderMinutesBefore = 0;
-        } else {
-            reminderMinutesBefore = parseInt(ev.reminder);
-        }
-        
-        // Fallback for text-based values like "10 mins before"
-        if (isNaN(reminderMinutesBefore)) {
-            if (String(ev.reminder).includes('hour')) reminderMinutesBefore = 60;
-            else if (String(ev.reminder).includes('day')) reminderMinutesBefore = 1440;
-            else if (String(ev.reminder).includes('10')) reminderMinutesBefore = 10;
-            else if (String(ev.reminder).includes('30')) reminderMinutesBefore = 30;
-            else reminderMinutesBefore = 0;
-        }
+        // Parse the offset
+        let mins = 0;
+        const r = String(ev.reminder);
+        if (r.includes('At time') || r === '0') mins = 0;
+        else if (r.includes('hour')) mins = 60;
+        else if (r.includes('day')) mins = 1440;
+        else mins = parseInt(r) || 0;
 
-        const alertTimeMs = eventDateTime.getTime() - (reminderMinutesBefore * 60000);
+        const alertMs = d.getTime() - (mins * 60000);
+        const diffMin = ((now.getTime() - alertMs) / 60000).toFixed(1);
 
-        // 3. Check if time has passed and we haven't notified for this specific alert time
-        if (now.getTime() >= alertTimeMs && ev._lastNotified !== alertTimeMs) {
-            ev._lastNotified = alertTimeMs; // Mark as notified
+        // DEBUG: remove this line once everything works
+        showStatus(`🔎 "${ev.title}" | offset:${mins}m | ${diffMin}m past alert`, 'info');
 
-            // Attempt to play sound
+        // Fire if we're past the alert, within a 60-min catch-up window, and not yet notified
+        const alreadyDone = ev._lastNotified === alertMs;
+        const tooOld = now.getTime() - alertMs > 60 * 60000;
+
+        if (now.getTime() >= alertMs && !alreadyDone && !tooOld) {
+            ev._lastNotified = alertMs;
             playChimeSound();
-
-            // 4. MOBILE FIX: Force a visual alert and vibration, because background audio is often blocked
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             showStatus(`🔔 REMINDER: ${ev.title} starts now!`, 'success');
-            
-            if (navigator.vibrate) {
-                navigator.vibrate([200, 100, 200]); // Vibrate phone twice
-            }
 
             if ("Notification" in window && Notification.permission === "granted") {
                 new Notification(`📅 Reminder: ${ev.title}`, {
-                    body: `Scheduled for ${ev.date} at ${ev.time}`,
-                    icon: 'favicon.ico'
+                    body: `Scheduled for ${ev.date} at ${ev.time}`
                 });
             }
         }
