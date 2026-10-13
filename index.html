@@ -1332,12 +1332,32 @@ function checkReminders() {
         if (!ev.date || !ev.time) return;
 
         const eventDateTime = new Date(`${ev.date}T${ev.time}:00`);
-        const reminderMinutesBefore = parseInt(ev.reminder);
-        const alertTime = new Date(eventDateTime.getTime() - (reminderMinutesBefore * 60000));
+        
+        // 1. Robustly parse the reminder minutes
+        let reminderMinutesBefore = 0;
+        if (ev.reminder === '0' || ev.reminder === 0) {
+            reminderMinutesBefore = 0;
+        } else {
+            reminderMinutesBefore = parseInt(ev.reminder);
+        }
+        
+        // Safety net: if parseInt fails (e.g., value is "1 hour before"), assign correct minutes
+        if (isNaN(reminderMinutesBefore)) {
+            if (ev.reminder.includes('hour')) reminderMinutesBefore = 60;
+            else if (ev.reminder.includes('day')) reminderMinutesBefore = 1440;
+            else if (ev.reminder.includes('10')) reminderMinutesBefore = 10;
+            else if (ev.reminder.includes('30')) reminderMinutesBefore = 30;
+            else reminderMinutesBefore = 0;
+        }
 
-        const diff = now.getTime() - alertTime.getTime();
-        if (diff >= 0 && diff < 35000 && !ev._notified) {
-            ev._notified = true;
+        const alertTime = new Date(eventDateTime.getTime() - (reminderMinutesBefore * 60000));
+        const alertTimeMs = alertTime.getTime();
+
+        // 2. Check if current time is past the alert time, AND we haven't notified for THIS specific alert time
+        if (now.getTime() >= alertTimeMs && ev._lastNotified !== alertTimeMs) {
+            
+            // Mark as notified for this specific alert time (fixes the "sticky flag" bug)
+            ev._lastNotified = alertTimeMs; 
 
             playChimeSound();
 
