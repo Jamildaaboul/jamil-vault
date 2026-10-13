@@ -1361,11 +1361,11 @@ function checkReminders() {
         if (!ev.reminder || ev.reminder === 'none' || ev.reminder === 'No Reminder') return;
         if (!ev.date || !ev.time) return;
 
-        // Normalise: accept "2:30 PM", "14:30", "14:30:00"
+        // Normalise time formats for mobile compatibility
         let t = String(ev.time).trim();
         let d = new Date(`${ev.date}T${t}`);
         if (isNaN(d.getTime())) {
-            // Try 12-hour AM/PM format
+            // Fallback for 12-hour AM/PM format
             const m = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
             if (m) {
                 let h = parseInt(m[1]) % 12;
@@ -1373,12 +1373,9 @@ function checkReminders() {
                 d = new Date(`${ev.date}T${String(h).padStart(2,'0')}:${m[2]}:00`);
             }
         }
-        if (isNaN(d.getTime())) {
-            showStatus(`⚠️ Bad date on "${ev.title}": ${ev.date} / ${ev.time}`, 'error');
-            return;
-        }
+        if (isNaN(d.getTime())) return;
 
-        // Parse the offset
+        // Parse the reminder offset safely
         let mins = 0;
         const r = String(ev.reminder);
         if (r.includes('At time') || r === '0') mins = 0;
@@ -1387,19 +1384,67 @@ function checkReminders() {
         else mins = parseInt(r) || 0;
 
         const alertMs = d.getTime() - (mins * 60000);
-        const diffMin = ((now.getTime() - alertMs) / 60000).toFixed(1);
 
-        // DEBUG: remove this line once everything works
-        showStatus(`🔎 "${ev.title}" | offset:${mins}m | ${diffMin}m past alert`, 'info');
-
-        // Fire if we're past the alert, within a 60-min catch-up window, and not yet notified
+        // Fire if we're past the alert time, within a 60-min catch-up window, and not yet notified
         const alreadyDone = ev._lastNotified === alertMs;
         const tooOld = now.getTime() - alertMs > 60 * 60000;
 
         if (now.getTime() >= alertMs && !alreadyDone && !tooOld) {
-            ev._lastNotified = alertMs;
+            ev._lastNotified = alertMs; // Mark as notified
+            
             playChimeSound();
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // Vibrate phone
+            showStatus(`🔔 REMINDER: ${ev.title} starts now!`, 'success');
+
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(`📅 Reminder: ${ev.title}`, {
+                    body: `Scheduled for ${ev.date} at ${ev.time}`
+                });
+            }
+        }
+    });
+}function checkReminders() {
+    if (document.getElementById('app').classList.contains('hidden')) return;
+
+    const now = new Date();
+
+    events.forEach(ev => {
+        if (!ev.reminder || ev.reminder === 'none' || ev.reminder === 'No Reminder') return;
+        if (!ev.date || !ev.time) return;
+
+        // Normalise time formats for mobile compatibility
+        let t = String(ev.time).trim();
+        let d = new Date(`${ev.date}T${t}`);
+        if (isNaN(d.getTime())) {
+            // Fallback for 12-hour AM/PM format
+            const m = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+            if (m) {
+                let h = parseInt(m[1]) % 12;
+                if (/pm/i.test(m[3])) h += 12;
+                d = new Date(`${ev.date}T${String(h).padStart(2,'0')}:${m[2]}:00`);
+            }
+        }
+        if (isNaN(d.getTime())) return;
+
+        // Parse the reminder offset safely
+        let mins = 0;
+        const r = String(ev.reminder);
+        if (r.includes('At time') || r === '0') mins = 0;
+        else if (r.includes('hour')) mins = 60;
+        else if (r.includes('day')) mins = 1440;
+        else mins = parseInt(r) || 0;
+
+        const alertMs = d.getTime() - (mins * 60000);
+
+        // Fire if we're past the alert time, within a 60-min catch-up window, and not yet notified
+        const alreadyDone = ev._lastNotified === alertMs;
+        const tooOld = now.getTime() - alertMs > 60 * 60000;
+
+        if (now.getTime() >= alertMs && !alreadyDone && !tooOld) {
+            ev._lastNotified = alertMs; // Mark as notified
+            
+            playChimeSound();
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // Vibrate phone
             showStatus(`🔔 REMINDER: ${ev.title} starts now!`, 'success');
 
             if ("Notification" in window && Notification.permission === "granted") {
@@ -1514,6 +1559,7 @@ function renderCalendar() {
                     <strong style="color:${headerColor};">${dayName}</strong>
                     <button class="btn-small" style="background:#28a745; padding:2px 6px; font-size:11px;" onclick="openNewEventForm('${dateStr}')">+ Add Event</button>
                 </div>`;
+				
             
             if (dayEvents.length > 0) {
                 html += '<div style="margin-top:4px; display:flex; flex-direction:column; gap:4px;">';
