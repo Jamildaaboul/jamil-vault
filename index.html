@@ -348,6 +348,35 @@ request.onsuccess = function(event) {
     loadAllDataFromDB();
 };
 
+let wakeLock = null;
+
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Screen wake lock active - phone will not sleep');
+        }
+    } catch (err) {
+        console.log('Wake lock not supported or denied:', err);
+    }
+}
+
+// Call this when the app is unlocked
+// Find your existing unlock() function and add requestWakeLock(); inside it, like this:
+/*
+function unlock() {
+    // ... your existing unlock code ...
+    if (hash(input) === masterHash) {
+        setTimeout(() => {
+            document.getElementById('unlock-screen').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            requestWakeLock(); // <-- ADD THIS LINE
+            // ... rest of your code ...
+        }, 100);
+    }
+}
+*/
+
 function saveDataToDB(key, data, callback) {
     if (!db) return;
     const transaction = db.transaction(["vaultStore"], "readwrite");
@@ -1328,42 +1357,56 @@ function checkReminders() {
 
     const now = new Date();
     events.forEach(ev => {
-        if (!ev.reminder || ev.reminder === 'none') return;
+        if (!ev.reminder || ev.reminder === 'none' || ev.reminder === 'No Reminder') return;
         if (!ev.date || !ev.time) return;
 
-        const eventDateTime = new Date(`${ev.date}T${ev.time}:00`);
+        // 1. MOBILE FIX: Strictly format date/time for iOS Safari compatibility
+        const cleanDate = ev.date.replace(/ /g, 'T'); // Ensure 'T' separator
+        const timeParts = ev.time.split(':');
+        const cleanTime = timeParts.length === 2 ? `${ev.time}:00` : ev.time; // Ensure seconds
         
-        // 1. Robustly parse the reminder minutes
+        const eventDateTime = new Date(`${cleanDate}T${cleanTime}`);
+        if (isNaN(eventDateTime.getTime())) {
+            console.warn("Invalid date format for event:", ev.title);
+            return;
+        }
+
+        // 2. Parse reminder minutes safely
         let reminderMinutesBefore = 0;
-        if (ev.reminder === '0' || ev.reminder === 0) {
+        if (ev.reminder === '0' || ev.reminder === 0 || String(ev.reminder).includes('At time')) {
             reminderMinutesBefore = 0;
         } else {
             reminderMinutesBefore = parseInt(ev.reminder);
         }
         
-        // Safety net: if parseInt fails (e.g., value is "1 hour before"), assign correct minutes
+        // Fallback for text-based values like "10 mins before"
         if (isNaN(reminderMinutesBefore)) {
-            if (ev.reminder.includes('hour')) reminderMinutesBefore = 60;
-            else if (ev.reminder.includes('day')) reminderMinutesBefore = 1440;
-            else if (ev.reminder.includes('10')) reminderMinutesBefore = 10;
-            else if (ev.reminder.includes('30')) reminderMinutesBefore = 30;
+            if (String(ev.reminder).includes('hour')) reminderMinutesBefore = 60;
+            else if (String(ev.reminder).includes('day')) reminderMinutesBefore = 1440;
+            else if (String(ev.reminder).includes('10')) reminderMinutesBefore = 10;
+            else if (String(ev.reminder).includes('30')) reminderMinutesBefore = 30;
             else reminderMinutesBefore = 0;
         }
 
-        const alertTime = new Date(eventDateTime.getTime() - (reminderMinutesBefore * 60000));
-        const alertTimeMs = alertTime.getTime();
+        const alertTimeMs = eventDateTime.getTime() - (reminderMinutesBefore * 60000);
 
-        // 2. Check if current time is past the alert time, AND we haven't notified for THIS specific alert time
+        // 3. Check if time has passed and we haven't notified for this specific alert time
         if (now.getTime() >= alertTimeMs && ev._lastNotified !== alertTimeMs) {
-            
-            // Mark as notified for this specific alert time (fixes the "sticky flag" bug)
-            ev._lastNotified = alertTimeMs; 
+            ev._lastNotified = alertTimeMs; // Mark as notified
 
+            // Attempt to play sound
             playChimeSound();
+
+            // 4. MOBILE FIX: Force a visual alert and vibration, because background audio is often blocked
+            showStatus(`🔔 REMINDER: ${ev.title} starts now!`, 'success');
+            
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200]); // Vibrate phone twice
+            }
 
             if ("Notification" in window && Notification.permission === "granted") {
                 new Notification(`📅 Reminder: ${ev.title}`, {
-                    body: `Scheduled for ${ev.date} at ${ev.time}\n${ev.desc || ''}`,
+                    body: `Scheduled for ${ev.date} at ${ev.time}`,
                     icon: 'favicon.ico'
                 });
             }
