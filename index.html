@@ -75,7 +75,7 @@ button:hover { opacity: 0.9; }
 </div>
 </div>
 
-<div id="unlock">
+<div id="unlock-screen">
 <p style="font-size:14px; margin:6px 0;">Please enter your master password to continue.</p>
 <input type="password" id="masterPass" placeholder="Master Password">
 <button onclick="unlock()">Unlock / Setup</button>
@@ -375,7 +375,7 @@ window.unlock = function unlock() {
     }
     if(hash(input) === masterHash) {
         setTimeout(() => {
-            document.getElementById('unlock').classList.add('hidden');
+            document.getElementById('unlock-screen').classList.add('hidden');
             document.getElementById('app').classList.remove('hidden');
             populateCategoryDropdowns();
             renderPasswords();
