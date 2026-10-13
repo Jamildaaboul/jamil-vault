@@ -1313,6 +1313,7 @@ function saveEvent() {
     saveDataToDB("events", events, () => {
         document.getElementById('eventFormPanel').classList.add('hidden');
         renderCalendar();
+		checkReminders(); // Check immediately after saving
     });
 }
 
