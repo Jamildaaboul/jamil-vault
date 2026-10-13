@@ -6,9 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Password Manager & Calendar</title>
 <style>
-    .container {
-        max-width: 600px;
-        margin: 30px auto;
+  .container {
+        max-width: 900px;
+        margin: 20px auto;
         background: var(--container-bg, #ffffff);
         padding: 20px;
         border-radius: 12px;
@@ -1865,36 +1865,38 @@ function openFilePreview(dataUrl) {
         }
 		
 		function checkCalendarReminders() {
-            if (typeof events === 'undefined' || !events || !Array.isArray(events)) {
-                return;
+            try {
+                // Pull live events directly from local storage so background checks stay synced
+                const savedEvents = JSON.parse(localStorage.getItem('vault_events') || '[]');
+                if (!Array.isArray(savedEvents) || savedEvents.length === 0) return;
+                
+                const now = new Date();
+                let updated = false;
+
+                savedEvents.forEach(ev => {
+                    if (!ev.date || !ev.time || ev.notified) return;
+                    
+                    const eventTime = new Date(`${ev.date}T${ev.time}:00`);
+                    if (isNaN(eventTime.getTime())) return;
+
+                    const diffMins = Math.floor((eventTime - now) / 60000);
+                    const reminderSetting = parseInt(ev.reminder || 0);
+
+                    if (reminderSetting > 0 && diffMins <= reminderSetting && diffMins >= 0) {
+                        alert(`Reminder: "${ev.title}" is coming up in about ${diffMins} minutes!`);
+                        ev.notified = true;
+                        updated = true;
+                    }
+                });
+
+                if (updated) {
+                    localStorage.setItem('vault_events', JSON.stringify(savedEvents));
+                    if (typeof events !== 'undefined') events = savedEvents;
+                    if (typeof renderCalendar === 'function') renderCalendar();
+                }
+            } catch (err) {
+                console.error("Reminder check error:", err);
             }
-            
-            const now = new Date();
-
-            events.forEach(ev => {
-                if (!ev.date || !ev.time) return;
-                
-                // Ensure correct date-time string parsing
-                const eventTimeString = `${ev.date}T${ev.time}:00`;
-                const eventTime = new Date(eventTimeString);
-                
-                if (isNaN(eventTime.getTime())) {
-                    console.warn("Invalid event time format for:", ev.title, ev.date, ev.time);
-                    return;
-                }
-
-                const diffMs = eventTime - now;
-                const diffMins = Math.floor(diffMs / 60000);
-                const reminderSetting = parseInt(ev.reminder || 0);
-
-                if (reminderSetting > 0 && diffMins <= reminderSetting && diffMins >= 0 && !ev.notified) {
-                    alert(`Reminder: "${ev.title}" is coming up in about ${diffMins} minutes!`);
-                    ev.notified = true;
-                } else if (diffMins <= 0 && diffMins > -2 && !ev.notifiedExact && !ev.notified) {
-                    alert(`Reminder: "${ev.title}" is starting now!`);
-                    ev.notifiedExact = true;
-                }
-            });
         }
 
         setInterval(checkCalendarReminders, 15000);
