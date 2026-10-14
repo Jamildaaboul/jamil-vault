@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="manifest" href="./manifest.json">
+   <link rel="manifest" href='data:application/manifest+json,{"name":"JamilVault","short_name":"JamilVault","start_url":"./index.html","display":"standalone","background_color":"#667eea","theme_color":"#667eea","icons":[{"src":"./icon-192.png","sizes":"192x192","type":"image/png"}]}'>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Password Manager & Calendar</title>
@@ -866,7 +866,7 @@ function saveEvent() {
     saveDataToDB("events", events, () => {
         document.getElementById('eventFormPanel').classList.add('hidden');
         renderCalendar();
-        checkReminders(); // Check immediately after saving
+        checkReminders();
     });
 }
 
@@ -1185,6 +1185,11 @@ function importData(event) {
 }
 
 function filterPasswords() { renderPasswords(document.getElementById('searchInput').value); }
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js');
+  }
 </script>
 </body>
 </html>
